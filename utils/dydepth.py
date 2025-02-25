@@ -391,6 +391,8 @@ def pose_estimate(K0,K1,hp0,hp1,strict_mask,rot,th=0.0001):
     return R01,T01,H01,comp_hp1,E
 
 def evaluate_tri(t10,R01,K0,K1,hp0,hp1,disp0,ent,bl,inlier_th=0.1,select_th=0.4, valid_mask=None):   
+    """
+    """
     if valid_mask is not None:
         hp0 = hp0[:,valid_mask]
         hp1 = hp1[:,valid_mask]
@@ -513,6 +515,7 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
 
 def mod_flow(bgmask,mask_pred, idepth,disp1,flow,ent,bl,K0,K1,scene_type, T01_c,R01, RTs, segs_unc, oracle=None, mono=True,sintel=False):
     # prepare data
+    # segs_unc is foreground mask
     idepth = idepth.copy()
     flow = flow.copy()
     shape = flow.shape[:2]
