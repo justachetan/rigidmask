@@ -332,6 +332,9 @@ def testEss(K0,K1,R,T,p1,p2):
         return False
     
 def pose_estimate(K0,K1,hp0,hp1,strict_mask,rot,th=0.0001):
+    """
+    rot: this parameter is just unused here. Ignore
+    """
     # epipolar geometry
     from models.submodule import F_ngransac
     tmphp0 = hp0[:,strict_mask]
@@ -392,6 +395,16 @@ def pose_estimate(K0,K1,hp0,hp1,strict_mask,rot,th=0.0001):
 
 def evaluate_tri(t10,R01,K0,K1,hp0,hp1,disp0,ent,bl,inlier_th=0.1,select_th=0.4, valid_mask=None):   
     """
+    t10: relative translation from frame 1 to 0
+    R01: relative rotation transform betn frame 0 to 1
+    K0, K1: intrinsics
+    hp0: homogeneous points in first frame
+    hp1: homo. points in second frame
+    disp0: disparity
+    ent: occlusion logit
+    bl: seems like a scaling factor, perhape to convert focal length from pixels to scene units?
+    valid_mask: usually it is pixels that are `valid` as per OF model (not out-of-range) and pixels belonging to a particular class
+
     """
     if valid_mask is not None:
         hp0 = hp0[:,valid_mask]
@@ -402,10 +415,14 @@ def evaluate_tri(t10,R01,K0,K1,hp0,hp1,disp0,ent,bl,inlier_th=0.1,select_th=0.4,
     #import time; beg = time.time()
     cams = [K0.dot(np.concatenate( (np.eye(3),np.zeros((3,1))), -1)),
            K1.dot(np.concatenate( (R01.T,-R01.T.dot(t10[:,np.newaxis])), -1)) ]
+    # NOTE: midpoint_triangulate takes in corresponding 2D points in images and predicts
+    #       their 3D location with mid-point triangulation
     P_pred,_ = midpoint_triangulate( np.concatenate([hp0[:,np.newaxis],hp1[:,np.newaxis]],1),cams)
     #print(1000*(time.time()-beg))
+    # NOTE: noramlizes by focal length to make it a meaningful quantity
     idepth_p3d = np.clip(K0[0,0]*bl/P_pred[2], 1e-6, np.inf)
 
+    # NOTE: points 
     # discard points with small disp
     entmask = np.logical_and(idepth_p3d>1e-12, ~np.isinf(idepth_p3d))
     entmask_tmp = entmask[entmask].copy()
@@ -425,6 +442,9 @@ def evaluate_tri(t10,R01,K0,K1,hp0,hp1,disp0,ent,bl,inlier_th=0.1,select_th=0.4,
     return agree_mask,t10*scale,rank
 
 def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono=True,sintel=False,tranpred=None,quatpred=None):
+    """
+    
+    """
     if sintel: parallax_th = parallax_th*0.25
     # prepare data
     shape = flow.shape[:2]
@@ -454,6 +474,10 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
     else:
         scene_type = 'F'    
         # determine scale of translation / reconstruction
+        # NOTE: here we are returning the mask where disparity and aligned depth 
+        #   do not differ a lot (given by select_th), the scaled translation in camera
+        #   coordinates and the rank of points when ranked in ascending order
+        #   of ratios of registered disparity and predicted disparity
         aligned_mask,T01_c,ranked_p = evaluate_tri(T01,R01,K0,K1,hp0,hp1,idepth,ent,bl,inlier_th=0.01,select_th=1.2,valid_mask=valid_mask)
         if not mono:
              # PnP refine
@@ -470,9 +494,11 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
              R01 = cv2.Rodrigues(rvec)[0].T
              T01_c = -R01.dot(T01)[:,0]
 
+    # NOTE: Iterating over all object labels
     RTs = []
     for i in range(0,mask_pred.max()):    
         obj_mask = (mask_pred==i+1).flatten()
+        # NOTE: here valid_mask is the object mask && where VCN predicts out of range
         valid_mask = np.logical_and(obj_mask, ent.reshape(obj_mask.shape)<0) 
         if valid_mask.sum()<10 or (valid_mask.sum() / obj_mask.sum() < 0.3):
             RT01 = None
@@ -485,7 +511,9 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
                 print('[FG-%03d Fitting] center/mean pp/flow: (%d,%d)/%.1f/%.1f px'%(i,
                  center_coord[0], center_coord[1], parallax_mag[obj_mask].mean(), 
                  flow_mag.flatten()[obj_mask].mean()))
-                if parallax_mag[obj_mask].mean()<parallax_th: RTs.append(None);continue
+                if parallax_mag[obj_mask].mean()<parallax_th: 
+                    RTs.append(None)
+                    continue
             else:
                 R01x = quatpred[i].T
                 T01_cx = -quatpred[i].T.dot(tranpred[i][:,None])[:,0]
@@ -497,6 +525,7 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
                 tmp = valid_mask.copy()
                 tmp[tmp] = aligned_mask
                 obj_mask = tmp
+            # NOTE: computing camera pose from 3D-2D correspondences
             _,rvec, T01_cx=cv2.solvePnP(reg_flow_P.T[obj_mask,np.newaxis],
                                    hp1[:2].T[obj_mask,np.newaxis], K0, 0, 
                                    flags=cv2.SOLVEPNP_DLS)
