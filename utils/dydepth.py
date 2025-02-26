@@ -443,7 +443,7 @@ def evaluate_tri(t10,R01,K0,K1,hp0,hp1,disp0,ent,bl,inlier_th=0.1,select_th=0.4,
 
 def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono=True,sintel=False,tranpred=None,quatpred=None):
     """
-    
+    bgmask_pred: where polar_mask or mask_pred here == 0
     """
     if sintel: parallax_th = parallax_th*0.25
     # prepare data
