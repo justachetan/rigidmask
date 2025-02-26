@@ -550,6 +550,10 @@ def mod_flow(bgmask,mask_pred, idepth,disp1,flow,ent,bl,K0,K1,scene_type, T01_c,
     # prepare data
     # NOTE: segs_unc is foreground mask obtained from output of network (fgmask > 0) means foreground
     # NOTE: bgmask -- wherever foreground mask / polarmask == 0
+    # NOTE: mask_input = polarmask in submission.py
+    # NOTE: occ - oor2 in VCNPlus.py forward - < 0 means the pixel is out of range
+    # NOTE: fgmask - fgmask as obtained from output of network
+    # NOTE: fgmask and bgmask may conflict here
     idepth = idepth.copy()
     flow = flow.copy()
     shape = flow.shape[:2]
