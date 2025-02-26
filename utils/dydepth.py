@@ -548,7 +548,8 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
 
 def mod_flow(bgmask,mask_pred, idepth,disp1,flow,ent,bl,K0,K1,scene_type, T01_c,R01, RTs, segs_unc, oracle=None, mono=True,sintel=False):
     # prepare data
-    # segs_unc is foreground mask
+    # NOTE: segs_unc is foreground mask obtained from output of network (fgmask > 0) means foreground
+    # NOTE: bgmask -- wherever foreground mask / polarmask == 0
     idepth = idepth.copy()
     flow = flow.copy()
     shape = flow.shape[:2]
