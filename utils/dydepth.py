@@ -526,6 +526,10 @@ def rb_fitting(bgmask_pred,mask_pred,idepth,flow,ent,K0,K1,bl,parallax_th=2,mono
                 tmp[tmp] = aligned_mask
                 obj_mask = tmp
             # NOTE: computing camera pose from 3D-2D correspondences
+            #   output of cv2.solvePnP seems to be from world to camera
+            #   https://docs.opencv.org/4.x/d7/d53/tutorial_py_pose.html
+            #   https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#ga1019495a2c8d1743ed5cc23fa0daff8c
+            #   
             _,rvec, T01_cx=cv2.solvePnP(reg_flow_P.T[obj_mask,np.newaxis],
                                    hp1[:2].T[obj_mask,np.newaxis], K0, 0, 
                                    flags=cv2.SOLVEPNP_DLS)
